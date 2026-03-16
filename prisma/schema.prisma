@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String      @id
+  email         String      @unique
+  defaultPlanId String?
+  defaultPlan   SportPlan?  @relation("UserDefaultPlan", fields: [defaultPlanId], references: [id])
+  matches       Match[]
+  customPlans   SportPlan[] @relation("UserCustomPlans")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model SportPlan {
+  id              String   @id // cuid() for custom; "plan-calcio", "plan-pallavolo", "plan-basket" for defaults
+  name            String
+  slug            String
+  playerCount     Int
+  statDefinitions Json // [{ key, label, short }]
+  userId          String? // null = default plan
+  user            User?    @relation("UserCustomPlans", fields: [userId], references: [id], onDelete: Cascade)
+  matches         Match[]
+  defaultPlanFor  User[]   @relation("UserDefaultPlan")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Match {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sportPlanId String
+  sportPlan   SportPlan @relation(fields: [sportPlanId], references: [id], onDelete: Restrict)
+  matchName   String
+  teamAData   Json // { name, players: [{ name, [statKey]: number }] }
+  teamBData   Json
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+}

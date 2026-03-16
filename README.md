@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Statser – Statistiche Partita
 
-## Getting Started
+App Next.js per registrare le statistiche di due squadre (calcio, pallavolo, basket o piani custom) con auth Supabase e salvataggio locale/cloud.
 
-First, run the development server:
+## Setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Variabili d’ambiente**
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+   Copia `.env.example` in `.env.local` e compila:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   - `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (da Supabase → Project Settings → API)
+   - `DATABASE_URL`: connection string Postgres (Supabase → Project Settings → Database)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Database**
 
-## Learn More
+   ```bash
+   npx prisma migrate deploy
+   npx prisma db seed
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+   Il seed crea i 3 piani default: Calcio (11 giocatori), Pallavolo (6), Basket (5).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Avvio**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-## Deploy on Vercel
+   Apri [http://localhost:3000](http://localhost:3000).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Funzionalità
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Auth**: Login e Registrazione (Supabase Email). Link in header (Accedi / Account).
+- **Piani**: 3 default (Calcio, Pallavolo, Basket) + piani personalizzati dall’account. In homepage selezioni il piano e la tabella si adatta (numero giocatori e statistiche).
+- **Statistiche**: Per ogni giocatore: nome + contatori (+ / −) per ogni stat del piano. Totali sotto la tabella.
+- **Salvataggio locale**: **Salva partita** → localStorage. **Partite salvate** elenca partite sul dispositivo e, se sei loggato, **Su account (cloud)**.
+- **Salva su account**: Se loggato, **Salva su account** invia la partita al DB (Prisma + Supabase Postgres).
+- **Account** (`/account`): Profilo, piano predefinito, crea/modifica/elimina piani personalizzati (nome, numero giocatori, elenco statistiche con key/label/breve).
+
+## Tech
+
+- Next.js 16 (App Router), React 19, Tailwind
+- Supabase (Auth + Postgres)
+- Prisma (schema: User, SportPlan, Match)

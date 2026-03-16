@@ -1,0 +1,57 @@
+[
+  {
+    "id": "plan-calcio-11",
+    "name": "Calcio a 11",
+    "slug": "calcio-11",
+    "playerCount": 11,
+    "statDefinitions": [
+      { "key": "passaggiRiusciti", "label": "Passaggi riusciti", "short": "P.R." },
+      { "key": "passaggiSbagliati", "label": "Passaggi sbagliati", "short": "P.S." },
+      { "key": "recuperi", "label": "Recuperi", "short": "Rec" },
+      { "key": "crossEffettuati", "label": "Cross effettuati", "short": "C.E." },
+      { "key": "crossRiusciti", "label": "Cross riusciti", "short": "C.R." },
+      { "key": "gol", "label": "Gol", "short": "Gol" }
+    ]
+  },
+  {
+    "id": "plan-calcio-7",
+    "name": "Calcio a 7",
+    "slug": "calcio-7",
+    "playerCount": 7,
+    "statDefinitions": [
+      { "key": "passaggiRiusciti", "label": "Passaggi riusciti", "short": "P.R." },
+      { "key": "passaggiSbagliati", "label": "Passaggi sbagliati", "short": "P.S." },
+      { "key": "recuperi", "label": "Recuperi", "short": "Rec" },
+      { "key": "crossEffettuati", "label": "Cross effettuati", "short": "C.E." },
+      { "key": "crossRiusciti", "label": "Cross riusciti", "short": "C.R." },
+      { "key": "gol", "label": "Gol", "short": "Gol" }
+    ]
+  },
+  {
+    "id": "plan-basket",
+    "name": "Basket",
+    "slug": "basket",
+    "playerCount": 5,
+    "statDefinitions": [
+      { "key": "punti", "label": "Punti", "short": "Pti" },
+      { "key": "rimbalzi", "label": "Rimbalzi", "short": "Rim" },
+      { "key": "assist", "label": "Assist", "short": "Ass" },
+      { "key": "pallePerse", "label": "Palle perse", "short": "PP" },
+      { "key": "stoppate", "label": "Stoppate", "short": "Sto" }
+    ]
+  },
+  {
+    "id": "plan-pallavolo",
+    "name": "Pallavolo",
+    "slug": "pallavolo",
+    "playerCount": 6,
+    "statDefinitions": [
+      { "key": "punti", "label": "Punti", "short": "Pti" },
+      { "key": "attacchi", "label": "Attacchi", "short": "Att" },
+      { "key": "muri", "label": "Muri", "short": "Mur" },
+      { "key": "battute", "label": "Battute", "short": "Bat" },
+      { "key": "ricezioni", "label": "Ricezioni", "short": "Ric" },
+      { "key": "errori", "label": "Errori", "short": "Err" }
+    ]
+  }
+]
