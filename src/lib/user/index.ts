@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAuthClient, createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -18,11 +18,17 @@ export const getUser = async () => {
 
 export async function getToken() {
   const cookieStore = await cookies();
-  return cookieStore.get("sb-access-token")?.value ?? null;
+  return cookieStore.get("sb-fspvblfdkguxdualxcwi-auth-token")?.value ?? null;
+}
+
+/** Returns the current session’s JWT access_token for Bearer auth (e.g. server-side API calls). */
+export async function getAccessToken(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
 }
 
 export async function validateToken(req: Request) {
-  const supabase = await createClient();
   const auth = req.headers.get("authorization") || "";
   const [type, token] = auth.split(" ");
 
@@ -36,11 +42,16 @@ export async function validateToken(req: Request) {
     };
   }
 
+  const supabase = await createAuthClient();
   const { data, error } = await supabase.auth.getUser(token);
+
   if (error || !data.user) {
     return {
       user: null,
-      response: NextResponse.json({ error: "Invalid token" }, { status: 401 }),
+      response: NextResponse.json(
+        { error: "Invalid token", message: error?.message },
+        { status: 401 },
+      ),
     };
   }
 
@@ -50,6 +61,7 @@ export async function validateToken(req: Request) {
 /** Use in API route handlers: supports both Bearer token (validateToken) and cookie session (getUser). */
 export async function getAuthFromRequest(req: Request) {
   const auth = req.headers.get("authorization") || "";
+
   if (auth.startsWith("Bearer ")) {
     return validateToken(req);
   }

@@ -22,8 +22,5 @@ export async function GET(request: Request) {
     }),
   ]);
 
-  return NextResponse.json({
-    defaultPlans,
-    customPlans,
-  });
+  return NextResponse.json([...defaultPlans, ...customPlans]);
 }

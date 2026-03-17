@@ -1,6 +1,6 @@
 "use server";
 
-import { getToken } from ".";
+import { getAccessToken } from ".";
 
 function getBaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_API_URL;
@@ -10,33 +10,28 @@ function getBaseUrl(): string {
 }
 
 export const getUser = async () => {
+  const token = await getAccessToken();
   const userRes = await fetch(`${getBaseUrl()}/user`, {
     credentials: "include",
-    headers: {
-      Authorization: `Bearer ${await getToken()}`,
-    },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-
   return userRes.json();
 };
 
 export const getPlans = async () => {
+  const token = await getAccessToken();
   const plansRes = await fetch(`${getBaseUrl()}/plans`, {
     credentials: "include",
-    headers: {
-      Authorization: `Bearer ${await getToken()}`,
-    },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-
   return plansRes.json();
 };
 
 export const getMatches = async () => {
+  const token = await getAccessToken();
   const matchesRes = await fetch(`${getBaseUrl()}/matches`, {
     credentials: "include",
-    headers: {
-      Authorization: `Bearer ${await getToken()}`,
-    },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   return matchesRes.json();
 };

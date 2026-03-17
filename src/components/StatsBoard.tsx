@@ -1,29 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { TeamStatsPanel } from "./TeamStatsPanel";
 import {
   createEmptyTeamFromConfig,
   type TeamData,
   type MatchInfo,
   type SportPlanConfig,
 } from "@/types/stats";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { SportPlan, User } from "@prisma/client";
 import { deleteMatch, getMatches, saveMatch } from "@/lib/storage";
+import { StatsBoardHeader } from "./StatsBoardHeader";
+import { SavedMatchesCard } from "./SavedMatchesCard";
+import { StatsBoardTeams } from "./StatsBoardTeams";
 
-type PlanOption = { id: string; name: string; config: SportPlanConfig };
+export type PlanOption = { id: string; name: string; config: SportPlanConfig };
 
 interface StatsBoardProps {
   defaultConfig: SportPlanConfig;
@@ -76,7 +66,6 @@ export function StatsBoard({
   matches,
   user,
 }: StatsBoardProps) {
-  console.log(plans);
   const allPlans = plans.map(planToOption);
 
   const defaultPlanId = user.defaultPlanId ?? plans[0]?.id ?? null;
@@ -273,241 +262,56 @@ export function StatsBoard({
     }
   };
 
+  const savedCount =
+    (match?.savedMatches?.length ?? 0) + (match?.cloudMatches?.length ?? 0);
+  const showSavedCard =
+    match?.showSaved &&
+    ((match?.savedMatches?.length ?? 0) > 0 ||
+      (match?.cloudMatches?.length ?? 0) > 0);
+
   return (
     <div className="w-full max-w-screen-2xl space-y-6 px-4 py-8">
-      <header className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-        <div className="text-center sm:text-left">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Statistiche Partita
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            {config.playerCount} giocatori per squadra · Salvataggio in locale
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {allPlans.length > 1 && (
-            <Select
-              value={selectedPlanId}
-              onValueChange={(v) => v != null && setSelectedPlanId(v)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Disciplina" />
-              </SelectTrigger>
-              <SelectContent>
-                {allPlans.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Input
-            type="text"
-            value={match?.matchName}
-            onChange={(e) =>
-              setMatch((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      matchName: e.target.value,
-                    }
-                  : prev,
-              )
-            }
-            placeholder="Nome partita (opzionale)"
-            className="w-48"
-          />
-          <Button
-            type="button"
-            onClick={handleSave}
-            className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700"
-          >
-            Salva partita
-          </Button>
-          {isLoggedIn && (
-            <Button
-              type="button"
-              onClick={handleSaveToCloud}
-              disabled={match?.savingToCloud ?? false}
-              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
-            >
-              {(match?.savingToCloud ?? false)
-                ? "Salvataggio…"
-                : "Salva su account"}
-            </Button>
-          )}
-          <Button
-            type="button"
-            onClick={() =>
-              setMatch((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      showSaved: !prev.showSaved,
-                    }
-                  : prev,
-              )
-            }
-            variant="outline"
-          >
-            Partite salvate (
-            {match?.savedMatches?.length ??
-              0 + (match?.cloudMatches?.length ?? 0)}
-            )
-          </Button>
-          <Button type="button" onClick={handleNewMatch} variant="outline">
-            Nuova partita
-          </Button>
-        </div>
-      </header>
+      <StatsBoardHeader
+        config={config}
+        allPlans={allPlans}
+        selectedPlanId={selectedPlanId}
+        onPlanChange={setSelectedPlanId}
+        matchName={match?.matchName ?? ""}
+        onMatchNameChange={(name) =>
+          setMatch((prev) => (prev ? { ...prev, matchName: name } : prev))
+        }
+        onSave={handleSave}
+        onSaveToCloud={handleSaveToCloud}
+        onToggleSaved={() =>
+          setMatch((prev) =>
+            prev ? { ...prev, showSaved: !prev.showSaved } : prev,
+          )
+        }
+        onNewMatch={handleNewMatch}
+        isLoggedIn={isLoggedIn}
+        savingToCloud={match?.savingToCloud ?? false}
+        savedCount={savedCount}
+      />
 
-      {match?.showSaved &&
-        ((match?.savedMatches?.length ?? 0 > 0) ||
-          (match?.cloudMatches?.length ?? 0) > 0) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Partite salvate</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {match?.savedMatches?.length ??
-                (0 > 0 && (
-                  <>
-                    <p className="mb-2 text-xs font-medium text-muted-foreground">
-                      Sul dispositivo (localStorage)
-                    </p>
-                    <ul className="mb-4 space-y-2">
-                      {match?.savedMatches?.map((p) => (
-                        <li
-                          key={p.id}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border py-2 px-3"
-                        >
-                          <div>
-                            <span className="font-medium text-foreground">
-                              {p.matchName}
-                            </span>
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              {new Date(p.createdAt).toLocaleDateString(
-                                "it-IT",
-                                {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                },
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => handleLoad(p)}
-                            >
-                              Carica
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDelete(p.id)}
-                            >
-                              Elimina
-                            </Button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                ))}
-              {isLoggedIn && (match?.cloudMatches?.length ?? 0) > 0 && (
-                <>
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">
-                    Su account (cloud)
-                  </p>
-                  <ul className="space-y-2">
-                    {match?.cloudMatches?.map((p) => (
-                      <li
-                        key={p.id}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border py-2 px-3"
-                      >
-                        <div>
-                          <span className="font-medium text-foreground">
-                            {p.matchName}
-                          </span>
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {new Date(p.createdAt).toLocaleDateString("it-IT", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleLoadCloud(p)}
-                          >
-                            Carica
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteCloud(p.id)}
-                          >
-                            Elimina
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        )}
+      {showSavedCard && match && (
+        <SavedMatchesCard
+          savedMatches={match.savedMatches}
+          cloudMatches={match.cloudMatches}
+          isLoggedIn={isLoggedIn}
+          onLoadLocal={handleLoad}
+          onDeleteLocal={handleDelete}
+          onLoadCloud={handleLoadCloud}
+          onDeleteCloud={handleDeleteCloud}
+        />
+      )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <Label className="text-muted-foreground">Nome squadra:</Label>
-            <Input
-              type="text"
-              value={teamA.name}
-              onChange={(e) => setTeamA({ ...teamA, name: e.target.value })}
-              className="max-w-[12rem]"
-            />
-          </div>
-          <TeamStatsPanel
-            team={teamA}
-            onUpdate={setTeamA}
-            teamColor="primary"
-            statDefinitions={config.statDefinitions}
-          />
-        </div>
-        <div>
-          <div className="mb-2 flex items-center gap-2">
-            <Label className="text-muted-foreground">Nome squadra:</Label>
-            <Input
-              type="text"
-              value={teamB.name}
-              onChange={(e) => setTeamB({ ...teamB, name: e.target.value })}
-              className="max-w-[12rem]"
-            />
-          </div>
-          <TeamStatsPanel
-            team={teamB}
-            onUpdate={setTeamB}
-            teamColor="secondary"
-            statDefinitions={config.statDefinitions}
-          />
-        </div>
-      </div>
+      <StatsBoardTeams
+        teamA={teamA}
+        teamB={teamB}
+        onTeamAChange={setTeamA}
+        onTeamBChange={setTeamB}
+        statDefinitions={config.statDefinitions}
+      />
     </div>
   );
 }

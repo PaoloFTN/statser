@@ -1,5 +1,6 @@
 "use server";
 
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
@@ -19,3 +20,8 @@ export const createClient = async () => {
     },
   });
 };
+
+/** Cookie-less client for validating a Bearer JWT only. Use in API routes. */
+export async function createAuthClient() {
+  return createSupabaseClient(supabaseUrl!, supabaseKey!);
+}
