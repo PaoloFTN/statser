@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function NavAuth() {
   const [user, setUser] = useState<{ id: string } | null>(null);
@@ -23,24 +25,32 @@ export function NavAuth() {
   if (!mounted) return null;
 
   return (
-    <nav className="flex items-center gap-4 text-sm">
+    <nav className="flex items-center gap-2">
       <Link
         href="/"
-        className="font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
       >
         Statistiche
       </Link>
       {user ? (
-        <Link
-          href="/account"
-          className="font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-        >
-          Account
-        </Link>
+        <>
+          <Link
+            href="/matches"
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+          >
+            Partite
+          </Link>
+          <Link
+            href="/account"
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+          >
+            Account
+          </Link>
+        </>
       ) : (
         <Link
           href="/login"
-          className="font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+          className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
         >
           Accedi
         </Link>

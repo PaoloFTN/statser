@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db";
+import { getAuthFromRequest } from "@/lib/user";
 
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+export async function GET(request: Request) {
+  const { user, response } = await getAuthFromRequest(request);
+  if (response) return response;
   if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -32,11 +29,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, response } = await getAuthFromRequest(request);
+  if (response) return response;
   if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -56,20 +50,29 @@ export async function POST(request: Request) {
     );
   }
 
-  const plan = await prisma.sportPlan.findFirst({
+  let plan = await prisma.sportPlan.findFirst({
     where: {
       id: sportPlanId,
       OR: [{ userId: null }, { userId: user.id }],
     },
   });
   if (!plan) {
-    return NextResponse.json({ error: "Piano non trovato" }, { status: 400 });
+    plan = await prisma.sportPlan.create({
+      data: {
+        userId: user.id,
+        id: sportPlanId,
+        name: "Piano di default",
+        slug: "piano-di-default",
+        playerCount: 11,
+        statDefinitions: [],
+      },
+    });
   }
 
   const match = await prisma.match.create({
     data: {
       userId: user.id,
-      sportPlanId: plan.id,
+      sportPlanId: plan?.id ?? sportPlanId,
       matchName: matchName.trim(),
       teamAData: teamAData as object,
       teamBData: teamBData as object,

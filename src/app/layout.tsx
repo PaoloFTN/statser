@@ -20,9 +20,9 @@ export default function RootLayout({
   return (
     <html lang="it" className={cn("font-sans", geist.variable)}>
       <body className="antialiased min-h-screen flex flex-col">
-        <header className="border-b border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-          <div className="mx-auto flex w-full max-w-screen-4xl items-center justify-between px-4 py-3">
-            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+        <header className="border-b border-border bg-card">
+          <div className="mx-auto flex w-full max-w-screen-2xl items-center justify-between px-4 py-3">
+            <span className="font-semibold text-foreground">
               Statser
             </span>
             <NavAuth />

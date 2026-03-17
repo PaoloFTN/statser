@@ -10,7 +10,9 @@
       { "key": "recuperi", "label": "Recuperi", "short": "Rec" },
       { "key": "crossEffettuati", "label": "Cross effettuati", "short": "C.E." },
       { "key": "crossRiusciti", "label": "Cross riusciti", "short": "C.R." },
-      { "key": "gol", "label": "Gol", "short": "Gol" }
+      { "key": "gol", "label": "Gol", "short": "Gol" },
+      {"key": "assist", "label": "Assist", "short": "Ass"},
+{"key": "scivolate", "label": "Scivolate", "short": "Sciv"}
     ]
   },
   {

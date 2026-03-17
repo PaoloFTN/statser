@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db";
+import { getAuthFromRequest } from "@/lib/user";
 
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+export async function GET(request: Request) {
+  const { user: authUser, response } = await getAuthFromRequest(request);
+  if (response) return response;
   if (!authUser?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

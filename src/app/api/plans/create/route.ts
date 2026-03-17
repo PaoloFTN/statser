@@ -1,20 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db";
+import { getAuthFromRequest } from "@/lib/user";
 import { randomBytes } from "crypto";
 
 export async function POST(request: Request) {
-  const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) {
-    return NextResponse.json(
-      { error: "DATABASE_URL is not set in this process" },
-      { status: 500 }
-    );
-  }
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, response } = await getAuthFromRequest(request);
+  if (response) return response;
   if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

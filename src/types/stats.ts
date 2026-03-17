@@ -6,6 +6,7 @@ export interface StatDefinition {
 }
 
 export interface SportPlanConfig {
+  name: string;
   playerCount: number;
   statDefinitions: StatDefinition[];
 }
@@ -21,7 +22,7 @@ export interface TeamData {
   players: PlayerData[];
 }
 
-export interface Partita {
+export interface MatchInfo {
   id: string;
   createdAt: number;
   matchName: string;
@@ -32,7 +33,7 @@ export interface Partita {
 
 export function createEmptyTeamFromConfig(
   config: SportPlanConfig,
-  teamName: string
+  teamName: string,
 ): TeamData {
   const initialStats: Record<string, number> = {};
   config.statDefinitions.forEach((s) => (initialStats[s.key] = 0));
@@ -47,7 +48,7 @@ export function createEmptyTeamFromConfig(
 
 export function aggregateStats(
   players: PlayerData[],
-  statKeys: string[]
+  statKeys: string[],
 ): Record<string, number> {
   const acc: Record<string, number> = {};
   statKeys.forEach((k) => (acc[k] = 0));

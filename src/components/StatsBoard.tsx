@@ -1,20 +1,47 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { TeamStatsPanel } from "./TeamStatsPanel";
 import {
   createEmptyTeamFromConfig,
   type TeamData,
-  type Partita,
+  type MatchInfo,
   type SportPlanConfig,
 } from "@/types/stats";
-import { getPartite, savePartita, deletePartita } from "@/lib/storage";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { SportPlan, User } from "@prisma/client";
+import { deleteMatch, getMatches, saveMatch } from "@/lib/storage";
 
 type PlanOption = { id: string; name: string; config: SportPlanConfig };
 
 interface StatsBoardProps {
   defaultConfig: SportPlanConfig;
+  plans: SportPlan[];
+  matches: MatchInfo[];
+  user: User;
 }
+
+export type MatchStats = {
+  id: string;
+  matchName: string;
+  savedMatches: MatchInfo[];
+  cloudMatches: MatchInfo[] | null;
+  showSaved: boolean;
+  currentId: string | null;
+  savingToCloud: boolean;
+  plan: SportPlanConfig;
+};
 
 function createNewMatch(config: SportPlanConfig): {
   teamA: TeamData;
@@ -36,86 +63,30 @@ function planToOption(p: {
     id: p.id,
     name: p.name,
     config: {
+      name: p.name,
       playerCount: p.playerCount,
       statDefinitions: p.statDefinitions as SportPlanConfig["statDefinitions"],
     },
   };
 }
 
-export function StatsBoard({ defaultConfig }: StatsBoardProps) {
-  const [plansLoaded, setPlansLoaded] = useState(false);
-  const [allPlans, setAllPlans] = useState<PlanOption[]>([
-    { id: "default", name: "Calcio", config: defaultConfig },
-  ]);
-  const [defaultPlanId, setDefaultPlanId] = useState<string | null>(null);
+export function StatsBoard({
+  defaultConfig,
+  plans,
+  matches,
+  user,
+}: StatsBoardProps) {
+  console.log(plans);
+  const allPlans = plans.map(planToOption);
 
-  useEffect(() => {
-    (async () => {
-      const [userRes, plansRes, matchesRes] = await Promise.all([
-        fetch("/api/user", { credentials: "include" }),
-        fetch("/api/plans", { credentials: "include" }),
-        fetch("/api/matches", { credentials: "include" }),
-      ]);
-      if (userRes.ok && plansRes.ok) {
-        const user = await userRes.json();
-        const { defaultPlans, customPlans } = await plansRes.json();
-        const combined = [
-          ...(defaultPlans ?? []).map(planToOption),
-          ...(customPlans ?? []).map(planToOption),
-        ];
-        if (combined.length > 0) {
-          setAllPlans(combined);
-          setDefaultPlanId(user.defaultPlanId ?? combined[0]?.id ?? null);
-        }
-      }
-      if (matchesRes.ok) {
-        const list = await matchesRes.json();
-        setCloudMatches(
-          list.map(
-            (m: {
-              id: string;
-              matchName: string;
-              sportPlanId: string;
-              teamAData: TeamData;
-              teamBData: TeamData;
-              createdAt: number;
-            }) => ({
-              id: m.id,
-              matchName: m.matchName,
-              sportPlanId: m.sportPlanId,
-              teamA: m.teamAData,
-              teamB: m.teamBData,
-              createdAt: m.createdAt,
-            }),
-          ),
-        );
-      } else if (matchesRes.status === 401) {
-        setCloudMatches(null);
-      } else {
-        setCloudMatches([]);
-      }
-      setPlansLoaded(true);
-    })();
-  }, []);
+  const defaultPlanId = user.defaultPlanId ?? plans[0]?.id ?? null;
 
-  const initialPlanId =
-    defaultPlanId && allPlans.some((p) => p.id === defaultPlanId)
-      ? defaultPlanId
-      : (allPlans[0]?.id ?? "default");
-  const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
-
-  useEffect(() => {
-    if (
-      plansLoaded &&
-      defaultPlanId &&
-      allPlans.some((p) => p.id === defaultPlanId)
-    ) {
-      setSelectedPlanId(defaultPlanId);
-    }
-  }, [plansLoaded, defaultPlanId, allPlans]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | undefined>(
+    defaultPlanId,
+  );
 
   const config =
-    allPlans.find((p) => p.id === selectedPlanId)?.config ?? defaultConfig;
+    allPlans.find((p) => p.id === defaultPlanId)?.config ?? defaultConfig;
 
   const [teamA, setTeamA] = useState<TeamData>(() =>
     createEmptyTeamFromConfig(config, "Squadra Casa"),
@@ -123,109 +94,165 @@ export function StatsBoard({ defaultConfig }: StatsBoardProps) {
   const [teamB, setTeamB] = useState<TeamData>(() =>
     createEmptyTeamFromConfig(config, "Squadra Ospiti"),
   );
-  const [matchName, setMatchName] = useState("");
-  const [savedPartite, setSavedPartite] = useState<Partita[]>([]);
-  const [cloudMatches, setCloudMatches] = useState<Partita[] | null>(null);
-  const [showSaved, setShowSaved] = useState(false);
-  const [currentPartitaId, setCurrentPartitaId] = useState<string | null>(null);
-  const [savingToCloud, setSavingToCloud] = useState(false);
 
-  useEffect(() => {
-    setSavedPartite(getPartite());
-  }, []);
+  const [match, setMatch] = useState<MatchStats | null>({
+    id: crypto.randomUUID(),
+    matchName: "",
+    savedMatches: [...getMatches(), ...matches],
+    cloudMatches: null,
+    showSaved: false,
+    currentId: null,
+    savingToCloud: false,
+    plan: config,
+  });
 
-  const isLoggedIn = cloudMatches !== null;
+  const isLoggedIn = match?.cloudMatches !== null;
 
   const handleSave = () => {
-    const partita: Partita = {
-      id: currentPartitaId ?? crypto.randomUUID(),
-      createdAt: currentPartitaId
-        ? (savedPartite.find((p) => p.id === currentPartitaId)?.createdAt ??
-          Date.now())
-        : Date.now(),
-      matchName: matchName.trim() || `${teamA.name} vs ${teamB.name}`,
-      sportPlanId: selectedPlanId !== "default" ? selectedPlanId : undefined,
+    const tmpMatch: MatchInfo = {
+      id: new Date().toISOString(),
+      createdAt: match?.id ? new Date(match.id).getTime() : Date.now(),
+      matchName: match?.matchName.trim() || `${teamA.name} vs ${teamB.name}`,
+      sportPlanId: match?.plan.name !== "default" ? selectedPlanId : undefined,
       teamA: JSON.parse(JSON.stringify(teamA)),
       teamB: JSON.parse(JSON.stringify(teamB)),
     };
-    savePartita(partita);
-    setSavedPartite(getPartite());
-    setCurrentPartitaId(partita.id);
-    setShowSaved(false);
+
+    saveMatch({
+      id: tmpMatch.id,
+      userId: user.id,
+      createdAt: new Date(tmpMatch.createdAt),
+      matchName: tmpMatch.matchName,
+      sportPlanId: tmpMatch.sportPlanId ?? "",
+      teamAData: JSON.parse(JSON.stringify(teamA)),
+      teamBData: JSON.parse(JSON.stringify(teamB)),
+    });
+
+    setMatch((prev) =>
+      prev
+        ? {
+            ...prev,
+            currentId: tmpMatch.id,
+            showSaved: false,
+            savedMatches: [...prev.savedMatches, tmpMatch],
+          }
+        : prev,
+    );
   };
 
-  const handleLoad = (p: Partita) => {
+  const handleLoad = (p: MatchInfo) => {
     setTeamA(JSON.parse(JSON.stringify(p.teamA)));
     setTeamB(JSON.parse(JSON.stringify(p.teamB)));
-    setMatchName(p.matchName);
-    setCurrentPartitaId(p.id);
-    setShowSaved(false);
+    setMatch((prev) =>
+      prev
+        ? {
+            ...prev,
+            currentId: p.id,
+            showSaved: false,
+            savedMatches: [...prev.savedMatches, p],
+          }
+        : prev,
+    );
   };
 
   const handleDelete = (id: string) => {
-    deletePartita(id);
-    setSavedPartite(getPartite());
+    deleteMatch(id);
+    setMatch((prev) =>
+      prev
+        ? {
+            ...prev,
+            savedMatches: prev.savedMatches.filter((m) => m.id !== id),
+          }
+        : prev,
+    );
   };
 
   const handleNewMatch = () => {
     const { teamA: a, teamB: b } = createNewMatch(config);
+    const newMatch: MatchInfo = {
+      id: new Date().toISOString(),
+      createdAt: new Date().getTime(),
+      matchName: "",
+      sportPlanId: defaultPlanId,
+      teamA: JSON.parse(JSON.stringify(a)),
+      teamB: JSON.parse(JSON.stringify(b)),
+    };
     setTeamA(a);
     setTeamB(b);
-    setMatchName("");
-    setCurrentPartitaId(null);
+    setMatch((prev) =>
+      prev
+        ? {
+            ...prev,
+            currentId: null,
+            showSaved: false,
+            savedMatches: [...prev.savedMatches, newMatch],
+          }
+        : prev,
+    );
   };
 
   const handleSaveToCloud = async () => {
     if (!isLoggedIn) return;
-    setSavingToCloud(true);
+    setMatch((prev) =>
+      prev
+        ? {
+            ...prev,
+            savingToCloud: true,
+          }
+        : prev,
+    );
+
     try {
       const res = await fetch("/api/matches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          matchName: matchName.trim() || `${teamA.name} vs ${teamB.name}`,
+          matchName:
+            match?.matchName.trim() || `${teamA.name} vs ${teamB.name}`,
           sportPlanId:
-            selectedPlanId === "default" ||
-            !allPlans.some((p) => p.id === selectedPlanId)
-              ? allPlans[0]?.id
-              : selectedPlanId,
+            match?.plan.name !== "default" ? defaultPlanId : undefined,
           teamAData: teamA,
           teamBData: teamB,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        setCloudMatches((prev) =>
-          prev === null
-            ? null
-            : [
-                {
-                  id: data.id,
-                  matchName: data.matchName,
-                  sportPlanId: selectedPlanId,
-                  teamA: JSON.parse(JSON.stringify(teamA)),
-                  teamB: JSON.parse(JSON.stringify(teamB)),
-                  createdAt: data.createdAt,
-                },
+        setMatch((prev) =>
+          prev
+            ? {
                 ...prev,
-              ],
+                cloudMatches: [...(prev.cloudMatches || []), data],
+              }
+            : prev,
         );
       }
     } finally {
-      setSavingToCloud(false);
+      setMatch((prev) =>
+        prev
+          ? {
+              ...prev,
+              savingToCloud: false,
+            }
+          : prev,
+      );
     }
   };
 
-  const handleLoadCloud = (p: Partita) => {
+  const handleLoadCloud = (p: MatchInfo) => {
     setTeamA(JSON.parse(JSON.stringify(p.teamA)));
     setTeamB(JSON.parse(JSON.stringify(p.teamB)));
-    setMatchName(p.matchName);
-    setCurrentPartitaId(p.id);
-    setShowSaved(false);
-    if (p.sportPlanId && allPlans.some((pl) => pl.id === p.sportPlanId)) {
-      setSelectedPlanId(p.sportPlanId);
-    }
+
+    setMatch((prev) =>
+      prev
+        ? {
+            ...prev,
+            currentId: p.id,
+            showSaved: false,
+            cloudMatches: [...(prev.cloudMatches || []), p],
+          }
+        : prev,
+    );
   };
 
   const handleDeleteCloud = async (id: string) => {
@@ -234,8 +261,14 @@ export function StatsBoard({ defaultConfig }: StatsBoardProps) {
       credentials: "include",
     });
     if (res.ok) {
-      setCloudMatches((prev) =>
-        prev ? prev.filter((m) => m.id !== id) : null,
+      setMatch((prev) =>
+        prev
+          ? {
+              ...prev,
+              cloudMatches:
+                prev.cloudMatches?.filter((m) => m.id !== id) || null,
+            }
+          : prev,
       );
     }
   };
@@ -244,181 +277,210 @@ export function StatsBoard({ defaultConfig }: StatsBoardProps) {
     <div className="w-full max-w-screen-2xl space-y-6 px-4 py-8">
       <header className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
         <div className="text-center sm:text-left">
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Statistiche Partita
           </h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-muted-foreground">
             {config.playerCount} giocatori per squadra · Salvataggio in locale
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
           {allPlans.length > 1 && (
-            <select
+            <Select
               value={selectedPlanId}
-              onChange={(e) => setSelectedPlanId(e.target.value)}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              onValueChange={(v) => v != null && setSelectedPlanId(v)}
             >
-              {allPlans.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Disciplina" />
+              </SelectTrigger>
+              <SelectContent>
+                {allPlans.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-          <input
+          <Input
             type="text"
-            value={matchName}
-            onChange={(e) => setMatchName(e.target.value)}
+            value={match?.matchName}
+            onChange={(e) =>
+              setMatch((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      matchName: e.target.value,
+                    }
+                  : prev,
+              )
+            }
             placeholder="Nome partita (opzionale)"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            className="w-48"
           />
-          <button
+          <Button
             type="button"
             onClick={handleSave}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
+            className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700"
           >
             Salva partita
-          </button>
+          </Button>
           {isLoggedIn && (
-            <button
+            <Button
               type="button"
               onClick={handleSaveToCloud}
-              disabled={savingToCloud}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+              disabled={match?.savingToCloud ?? false}
+              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700"
             >
-              {savingToCloud ? "Salvataggio…" : "Salva su account"}
-            </button>
+              {(match?.savingToCloud ?? false)
+                ? "Salvataggio…"
+                : "Salva su account"}
+            </Button>
           )}
-          <button
+          <Button
             type="button"
-            onClick={() => setShowSaved((v) => !v)}
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            onClick={() =>
+              setMatch((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      showSaved: !prev.showSaved,
+                    }
+                  : prev,
+              )
+            }
+            variant="outline"
           >
-            Partite salvate ({savedPartite.length + (cloudMatches?.length ?? 0)}
+            Partite salvate (
+            {match?.savedMatches?.length ??
+              0 + (match?.cloudMatches?.length ?? 0)}
             )
-          </button>
-          <button
-            type="button"
-            onClick={handleNewMatch}
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-          >
+          </Button>
+          <Button type="button" onClick={handleNewMatch} variant="outline">
             Nuova partita
-          </button>
+          </Button>
         </div>
       </header>
 
-      {showSaved &&
-        (savedPartite.length > 0 || (cloudMatches?.length ?? 0) > 0) && (
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-800/50">
-            <h3 className="mb-3 font-semibold text-zinc-900 dark:text-zinc-100">
-              Partite salvate
-            </h3>
-            {savedPartite.length > 0 && (
-              <>
-                <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  Sul dispositivo (localStorage)
-                </p>
-                <ul className="mb-4 space-y-2">
-                  {savedPartite.map((p) => (
-                    <li
-                      key={p.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 py-2 px-3 dark:border-zinc-600"
-                    >
-                      <div>
-                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {p.matchName}
-                        </span>
-                        <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">
-                          {new Date(p.createdAt).toLocaleDateString("it-IT", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleLoad(p)}
-                          className="rounded bg-zinc-800 px-3 py-1 text-sm text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
+      {match?.showSaved &&
+        ((match?.savedMatches?.length ?? 0 > 0) ||
+          (match?.cloudMatches?.length ?? 0) > 0) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Partite salvate</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {match?.savedMatches?.length ??
+                (0 > 0 && (
+                  <>
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">
+                      Sul dispositivo (localStorage)
+                    </p>
+                    <ul className="mb-4 space-y-2">
+                      {match?.savedMatches?.map((p) => (
+                        <li
+                          key={p.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border py-2 px-3"
                         >
-                          Carica
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(p.id)}
-                          className="rounded border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
-                        >
-                          Elimina
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {isLoggedIn && (cloudMatches?.length ?? 0) > 0 && (
-              <>
-                <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  Su account (cloud)
-                </p>
-                <ul className="space-y-2">
-                  {cloudMatches?.map((p) => (
-                    <li
-                      key={p.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 py-2 px-3 dark:border-zinc-600"
-                    >
-                      <div>
-                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {p.matchName}
-                        </span>
-                        <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">
-                          {new Date(p.createdAt).toLocaleDateString("it-IT", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleLoadCloud(p)}
-                          className="rounded bg-zinc-800 px-3 py-1 text-sm text-white hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
-                        >
-                          Carica
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCloud(p.id)}
-                          className="rounded border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
-                        >
-                          Elimina
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
+                          <div>
+                            <span className="font-medium text-foreground">
+                              {p.matchName}
+                            </span>
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {new Date(p.createdAt).toLocaleDateString(
+                                "it-IT",
+                                {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleLoad(p)}
+                            >
+                              Carica
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDelete(p.id)}
+                            >
+                              Elimina
+                            </Button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ))}
+              {isLoggedIn && (match?.cloudMatches?.length ?? 0) > 0 && (
+                <>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    Su account (cloud)
+                  </p>
+                  <ul className="space-y-2">
+                    {match?.cloudMatches?.map((p) => (
+                      <li
+                        key={p.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border py-2 px-3"
+                      >
+                        <div>
+                          <span className="font-medium text-foreground">
+                            {p.matchName}
+                          </span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {new Date(p.createdAt).toLocaleDateString("it-IT", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleLoadCloud(p)}
+                          >
+                            Carica
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteCloud(p.id)}
+                          >
+                            Elimina
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </CardContent>
+          </Card>
         )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <label className="text-sm text-zinc-500 dark:text-zinc-400">
-              Nome squadra:
-            </label>
-            <input
+            <Label className="text-muted-foreground">Nome squadra:</Label>
+            <Input
               type="text"
               value={teamA.name}
               onChange={(e) => setTeamA({ ...teamA, name: e.target.value })}
-              className="rounded border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              className="max-w-[12rem]"
             />
           </div>
           <TeamStatsPanel
@@ -430,14 +492,12 @@ export function StatsBoard({ defaultConfig }: StatsBoardProps) {
         </div>
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <label className="text-sm text-zinc-500 dark:text-zinc-400">
-              Nome squadra:
-            </label>
-            <input
+            <Label className="text-muted-foreground">Nome squadra:</Label>
+            <Input
               type="text"
               value={teamB.name}
               onChange={(e) => setTeamB({ ...teamB, name: e.target.value })}
-              className="rounded border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              className="max-w-[12rem]"
             />
           </div>
           <TeamStatsPanel

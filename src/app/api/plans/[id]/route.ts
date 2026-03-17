@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db";
+import { getAuthFromRequest } from "@/lib/user";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -8,10 +8,8 @@ export async function PATCH(
   request: Request,
   { params }: Params
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, response } = await getAuthFromRequest(request);
+  if (response) return response;
   if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -44,13 +42,11 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: Params
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user, response } = await getAuthFromRequest(request);
+  if (response) return response;
   if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
