@@ -1,6 +1,8 @@
 import { StatsBoard } from "@/components/StatsBoard";
-import { CALCIO_DEFAULT_CONFIG } from "@/lib/default-config";
+import { YouTubeEmbed } from "@/components/YouTubeEmbed";
+import defaultPlansJSON from "@/lib/default-plans.json";
 import { getMatches, getPlans, getUser } from "@/lib/user/api";
+import { SportPlanConfig } from "@/types/stats";
 
 export default async function Home() {
   const [matches, plans, user] = await Promise.all([
@@ -10,15 +12,15 @@ export default async function Home() {
   ]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-muted/30 to-muted/50 font-sans dark:via-muted/20 dark:to-muted/30">
-      <main className="flex min-h-screen w-full flex-col items-center">
+    <div className="max-w-screen-2xl w-full">
+      <YouTubeEmbed>
         <StatsBoard
-          defaultConfig={CALCIO_DEFAULT_CONFIG}
+          defaultConfig={defaultPlansJSON[0] as SportPlanConfig}
           plans={plans}
           matches={matches}
           user={user}
         />
-      </main>
+      </YouTubeEmbed>
     </div>
   );
 }

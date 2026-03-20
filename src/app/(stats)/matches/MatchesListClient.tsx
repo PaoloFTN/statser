@@ -1,47 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ArrowLeft } from "lucide-react";
+import { MatchInfo } from "@/types/stats";
 
-type MatchItem = {
-  id: string;
-  matchName: string;
-  sportPlanName: string;
-  createdAt: number;
-};
-
-export function MatchesListClient() {
-  const [matches, setMatches] = useState<MatchItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/matches", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        setMatches(Array.isArray(data) ? data : []);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="py-8">
-          <p className="text-center text-muted-foreground">Caricamento…</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
+export function MatchesListClient({ matches }: { matches: MatchInfo[] }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-12 ">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Partite salvate</h1>
-        <Link href="/" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-          ← Nuova partita
+        <Link
+          href="/"
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+        >
+          <ArrowLeft /> Nuova partita
         </Link>
       </div>
 
@@ -52,7 +27,8 @@ export function MatchesListClient() {
         <CardContent>
           {matches.length === 0 ? (
             <p className="py-6 text-center text-muted-foreground">
-              Nessuna partita salvata. Salva una partita dalla pagina Statistiche.
+              Nessuna partita salvata. Salva una partita dalla pagina
+              Statistiche.
             </p>
           ) : (
             <ul className="divide-y divide-border">
@@ -67,13 +43,13 @@ export function MatchesListClient() {
                         {m.matchName || "Senza nome"}
                       </span>
                       <span className="ml-2 text-sm text-muted-foreground">
-                        {m.sportPlanName}
+                        {m.sportPlanId}
                       </span>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      {new Date(m.createdAt).toLocaleDateString("it-IT", {
+                      {new Date(m.createdAt).toLocaleString("it-IT", {
                         day: "2-digit",
-                        month: "short",
+                        month: "long",
                         year: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",

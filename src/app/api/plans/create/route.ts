@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAuthFromRequest } from "@/lib/user";
 import { randomBytes } from "crypto";
+import { CreatePlanParams } from "@/app/(stats)/account/page";
+import DefaultPlansJSON from "@/lib/default-plans.json";
+import { SportPlan } from "@prisma/client";
 
 export async function POST(request: Request) {
   const { user, response } = await getAuthFromRequest(request);
@@ -10,11 +13,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  console.log("create plan");
+
   const body = await request.json();
-  const { name, copyFromPlanId } = body as {
-    name: string;
-    copyFromPlanId?: string;
-  };
+  const { name, copyFromPlanId } = body as CreatePlanParams;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "Nome richiesto" }, { status: 400 });
@@ -26,15 +28,28 @@ export async function POST(request: Request) {
   ];
 
   if (copyFromPlanId) {
-    const source = await prisma.sportPlan.findFirst({
+    let source = await prisma.sportPlan.findFirst({
       where: {
-        id: copyFromPlanId,
-        OR: [{ userId: null }, { userId: user.id }],
+        OR: [
+          { userId: null },
+          { userId: user.id },
+          { id: copyFromPlanId },
+          { slug: copyFromPlanId },
+        ],
       },
     });
-    if (source) {
-      playerCount = source.playerCount;
-      statDefinitions = source.statDefinitions as typeof statDefinitions;
+
+    if (!source) {
+      source =
+        (DefaultPlansJSON.find(
+          (p) => p.slug === copyFromPlanId,
+        ) as unknown as SportPlan) ?? null;
+
+      console.log(JSON.stringify(source));
+      if (source) {
+        playerCount = source.playerCount;
+        statDefinitions = source.statDefinitions as typeof statDefinitions;
+      }
     }
   }
 

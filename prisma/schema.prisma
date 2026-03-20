@@ -10,28 +10,40 @@ datasource db {
 }
 
 model User {
-  id            String      @id
-  email         String      @unique
+  id            String        @id
+  email         String        @unique
   defaultPlanId String?
-  defaultPlan   SportPlan?  @relation("UserDefaultPlan", fields: [defaultPlanId], references: [id])
+  defaultPlan   SportPlan?    @relation("UserDefaultPlan", fields: [defaultPlanId], references: [id])
   matches       Match[]
-  customPlans   SportPlan[] @relation("UserCustomPlans")
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  customPlans   SportPlan[]   @relation("UserCustomPlans")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  defaultPlans  DefaultPlan[]
+}
+
+model DefaultPlan {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sportPlanId String
+  sportPlan   SportPlan @relation(fields: [sportPlanId], references: [id], onDelete: Restrict)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model SportPlan {
-  id              String   @id // cuid() for custom; "plan-calcio", "plan-pallavolo", "plan-basket" for defaults
+  id              String        @id // cuid() for custom; "plan-calcio", "plan-pallavolo", "plan-basket" for defaults
   name            String
   slug            String
   playerCount     Int
   statDefinitions Json // [{ key, label, short }]
   userId          String? // null = default plan
-  user            User?    @relation("UserCustomPlans", fields: [userId], references: [id], onDelete: Cascade)
+  user            User?         @relation("UserCustomPlans", fields: [userId], references: [id], onDelete: Cascade)
   matches         Match[]
-  defaultPlanFor  User[]   @relation("UserDefaultPlan")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  defaultPlanFor  User[]        @relation("UserDefaultPlan")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  defaultPlans    DefaultPlan[]
 }
 
 model Match {

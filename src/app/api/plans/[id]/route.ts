@@ -4,12 +4,10 @@ import { getAuthFromRequest } from "@/lib/user";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function PATCH(
-  request: Request,
-  { params }: Params
-) {
+export async function PATCH(request: Request, { params }: Params) {
   const { user, response } = await getAuthFromRequest(request);
   if (response) return response;
+
   if (!user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -41,10 +39,7 @@ export async function PATCH(
   return NextResponse.json(updated);
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: Params
-) {
+export async function DELETE(request: Request, { params }: Params) {
   const { user, response } = await getAuthFromRequest(request);
   if (response) return response;
   if (!user?.id) {
@@ -52,8 +47,9 @@ export async function DELETE(
   }
 
   const { id } = await params;
+
   const plan = await prisma.sportPlan.findFirst({
-    where: { id, userId: user.id },
+    where: { id },
     include: { _count: { select: { matches: true } } },
   });
   if (!plan) {
@@ -61,8 +57,10 @@ export async function DELETE(
   }
   if (plan._count.matches > 0) {
     return NextResponse.json(
-      { error: "Impossibile eliminare: esistono partite che usano questo piano" },
-      { status: 400 }
+      {
+        error: "Impossibile eliminare: esistono partite che usano questo piano",
+      },
+      { status: 400 },
     );
   }
 

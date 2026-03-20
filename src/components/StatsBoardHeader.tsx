@@ -2,17 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { PlanSelector, PlanSelectorOption } from "./PlanSelector";
 
 interface StatsBoardHeaderProps {
   config: { playerCount: number };
-  allPlans: { id: string; name: string }[];
+  allPlans: PlanSelectorOption[];
   selectedPlanId: string | undefined;
   onPlanChange: (id: string) => void;
   matchName: string;
@@ -53,21 +47,13 @@ export function StatsBoardHeader({
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">
         {allPlans.length > 1 && (
-          <Select
+          <PlanSelector
+            plans={allPlans}
             value={selectedPlanId}
-            onValueChange={(v) => v != null && onPlanChange(v)}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Disciplina" />
-            </SelectTrigger>
-            <SelectContent>
-              {allPlans.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onChange={onPlanChange}
+            placeholder="Disciplina"
+            className="w-[180px]"
+          />
         )}
         <Input
           type="text"

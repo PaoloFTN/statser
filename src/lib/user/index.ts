@@ -1,19 +1,17 @@
 "use server";
 
 import { createAuthClient, createClient } from "@/lib/supabase/server";
+import { User } from "@supabase/supabase-js";
+
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export const getUser = async () => {
+export const getUser = async (): Promise<User | null> => {
   const supabase = await createClient();
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data } = await supabase.auth.getUser();
 
-  console.log(session);
-
-  return session?.user ?? null;
+  return data?.user ?? null;
 };
 
 export async function getToken() {
@@ -24,7 +22,9 @@ export async function getToken() {
 /** Returns the current session’s JWT access_token for Bearer auth (e.g. server-side API calls). */
 export async function getAccessToken(): Promise<string | null> {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return session?.access_token ?? null;
 }
 
@@ -65,6 +65,7 @@ export async function getAuthFromRequest(req: Request) {
   if (auth.startsWith("Bearer ")) {
     return validateToken(req);
   }
+  console.log("getAuthFromRequest");
   const user = await getUser();
   return { user, response: null as NextResponse | null };
 }
